@@ -11,8 +11,9 @@ import math
 import random
 import gc
 
-def evaluate_homography(scale, gaussian_kernel, do_skeletonize, keypoints_finder_name, train_set=True):
+def evaluate_homography(scale, gaussian_kernel, do_skeletonize, crop_width, crop_height, keypoints_finder_name, train_set=True):
     baseline = cv.imread('baseline.png',0)
+    baseline = baseline[crop_height:baseline.shape[0]-crop_height, crop_width:baseline.shape[1]-crop_width]
     test_images = []
     test_points = []
     
@@ -50,7 +51,7 @@ def evaluate_homography(scale, gaussian_kernel, do_skeletonize, keypoints_finder
         n_homography_found += 1
         
         pts = np.float32([[x*scale,y*scale] for x,y in zip(test_point["x"], test_point["y"])]).reshape(-1,1,2)
-        targets = np.float32([[x*scale,y*scale] for x,y in zip(test_point["x_"], test_point["y_"])])
+        targets = np.float32([[(x-crop_width)*scale,(y-crop_height)*scale] for x,y in zip(test_point["x_"], test_point["y_"])])
         p_transformed = cv.perspectiveTransform(pts,M).reshape(-1,2)
         distances.append((1/scale)*np.mean([math.sqrt((target_x - p_transformed_x)**2 + (target_y - p_transformed_y)**2) for ((target_x, target_y), (p_transformed_x, p_transformed_y)) in zip (targets, p_transformed)]))
 
@@ -61,25 +62,27 @@ def evaluate_homography(scale, gaussian_kernel, do_skeletonize, keypoints_finder
                 saved_baseline = cv.circle(saved_baseline, (int(round((p_transformed[i][0]))), int(round((p_transformed[i][1])))), 10, (127,0,0), thickness=-1)
                 #test_image = cv.circle(test_image, (int(round((pts[i][0][0]))), int(round((pts[i][0][1])))), 10, (255,0,0),-1)
             plt.imsave(f"test_results/{filename}.png", saved_baseline)
-    if n_homography_found < 5:
+    if n_homography_found < 1:
         mean_distance = 9999
     else:
         mean_distance = np.mean(distances)
     return mean_distance, n_homography_found
 
+
 solutions = []
-num_sol = 20
 keypoints_finders = ["sift", "orb", "brisk"]
-for s in range(num_sol):
-    kernel = random.randint(10,50)
+num_keypoints_finder = 0
+for s in range(20):
+    kernel = random.randint(10,80)
     if kernel % 2 == 0:
         kernel += 1
-    solutions.append( ( random.uniform(0.2,0.5), kernel, random.random() >0.5, keypoints_finders[0]))
+    solutions.append( ( random.uniform(0.2,0.6), kernel, random.random() >0.5, random.randint(0,4500), random.randint(0,3500), keypoints_finders[num_keypoints_finder]))
 
+print("Start")
 for e in range(100):
     ranked_solutions = []
     for s in solutions:
-        ranked_solutions.append((evaluate_homography(s[0], (s[1], s[1]), s[2], s[3]),s))
+        ranked_solutions.append((evaluate_homography(s[0], (s[1], s[1]), s[2], s[3], s[4], s[5]),s))
     ranked_solutions.sort()
     print(f"Gen {e} best solution : {ranked_solutions[0][1]} with fitness {ranked_solutions[0][0]}")
     best_solutions = ranked_solutions[:5]
@@ -87,20 +90,32 @@ for e in range(100):
     scales = []
     kernels = []
     do_skeletonizes = []
+    crop_widths = []
+    crop_heights = []
     for s in best_solutions:
         scales.append(s[1][0])
         kernels.append(s[1][1])
         do_skeletonizes.append(s[1][2])
+        crop_widths.append(s[1][3])
+        crop_heights.append(s[1][4])
         
         
     new_gen = []
-    for i in range(num_sol):
+    for i in range(20):
         scale = random.choice(scales) + random.uniform(-0.03, 0.03)
         kernel = random.choice(kernels) + random.randint(-2,2)
         if kernel % 2 == 0:
             kernel += 1
         do_skeletonize = random.choice(do_skeletonizes)
         do_skeletonize = do_skeletonize if random.random() < 0.8 else not do_skeletonize
+        crop_width = random.choice(crop_widths) + random.randint(-100,100)
+        crop_height = random.choice(crop_heights) + random.randint(-100,100)
         
-        new_gen.append((scale, kernel, do_skeletonize, keypoints_finders[0]))
+        if crop_width > 4500:
+            crop_width = 4500
+        if crop_height > 3500:
+            crop_height = 3500
+        
+        new_gen.append((scale, kernel, do_skeletonize, crop_width, crop_height, keypoints_finders[num_keypoints_finder]))
     solutions = new_gen
+print("Done")
