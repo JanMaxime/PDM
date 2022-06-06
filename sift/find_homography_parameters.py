@@ -61,42 +61,40 @@ def evaluate_homography(scale, gaussian_kernel, do_skeletonize, keypoints_finder
                 saved_baseline = cv.circle(saved_baseline, (int(round((p_transformed[i][0]))), int(round((p_transformed[i][1])))), 10, (127,0,0), thickness=-1)
                 #test_image = cv.circle(test_image, (int(round((pts[i][0][0]))), int(round((pts[i][0][1])))), 10, (255,0,0),-1)
             plt.imsave(f"test_results/{filename}.png", saved_baseline)
-     
-    mean_distance = np.mean(distances)
     if n_homography_found < 5:
-        return 9999, n_homography_found
+        mean_distance = 9999
     else:
-        return mean_distance, n_homography_found
-    
+        mean_distance = np.mean(distances)
+    return mean_distance, n_homography_found
+
 solutions = []
+num_sol = 20
 keypoints_finders = ["sift", "orb", "brisk"]
-for s in range(2):
-    kernel = random.randint(10,80)
+for s in range(num_sol):
+    kernel = random.randint(10,50)
     if kernel % 2 == 0:
         kernel += 1
-    solutions.append( ( random.uniform(0.2,0.6), kernel, random.random() >0.5, keypoints_finders[0]))
-    
-for e in range(2):
+    solutions.append( ( random.uniform(0.2,0.5), kernel, random.random() >0.5, keypoints_finders[0]))
+
+for e in range(100):
     ranked_solutions = []
     for s in solutions:
         ranked_solutions.append((evaluate_homography(s[0], (s[1], s[1]), s[2], s[3]),s))
     ranked_solutions.sort()
     print(f"Gen {e} best solution : {ranked_solutions[0][1]} with fitness {ranked_solutions[0][0]}")
-    best_solutions = ranked_solutions[:2]
+    best_solutions = ranked_solutions[:5]
     
     scales = []
     kernels = []
     do_skeletonizes = []
-    best_keypoints_finders = []
     for s in best_solutions:
         scales.append(s[1][0])
         kernels.append(s[1][1])
         do_skeletonizes.append(s[1][2])
-        best_keypoints_finders.append(s[1][3])
         
         
     new_gen = []
-    for i in range(20):
+    for i in range(num_sol):
         scale = random.choice(scales) + random.uniform(-0.03, 0.03)
         kernel = random.choice(kernels) + random.randint(-2,2)
         if kernel % 2 == 0:
