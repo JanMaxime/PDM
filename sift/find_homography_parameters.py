@@ -54,7 +54,7 @@ def evaluate_homography(scale, gaussian_kernel, do_skeletonize, crop_width, crop
         pts = np.float32([[x*scale,y*scale] for x,y in zip(test_point["x"], test_point["y"])]).reshape(-1,1,2)
         targets = np.float32([[(x-crop_width)*scale,(y-crop_height)*scale] for x,y in zip(test_point["x_"], test_point["y_"])])
         p_transformed = cv.perspectiveTransform(pts,M).reshape(-1,2)
-        dst = 1/scale)*np.mean([math.sqrt((target_x - p_transformed_x)**2 + (target_y - p_transformed_y)**2) for ((target_x, target_y), (p_transformed_x, p_transformed_y)) in zip (targets, p_transformed)])
+        dst = (1/scale)*np.mean([math.sqrt((target_x - p_transformed_x)**2 + (target_y - p_transformed_y)**2) for ((target_x, target_y), (p_transformed_x, p_transformed_y)) in zip (targets, p_transformed)])
         distances.append(dst)
         if dst > 100:
             bad_maps+=1
